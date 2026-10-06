@@ -1,0 +1,23 @@
+tests:
+  # gzm fs_mgr on LittleFS: the same tests on the PC (flash simulator)
+  # and on the board (SPI NOR W25Q64).
+  demo.fs_mgr:
+    platform_allow:
+      - native_sim
+      - native_sim/native/64
+    integration_platforms:
+      - native_sim/native/64
+    tags:
+      - demo
+      - fs_mgr
+  demo.fs_mgr.board:
+    platform_allow:
+      - weact_stm32h743
+    sysbuild: true
+    # the SPI NOR has no model in Renode: real board only
+    simulation_exclude:
+      - renode
+    timeout: 300
+    tags:
+      - demo
+      - fs_mgr

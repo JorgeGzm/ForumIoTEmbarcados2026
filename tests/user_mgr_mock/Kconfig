@@ -1,0 +1,33 @@
+# Copyright (c) 2026 GZM Embarcados
+# SPDX-License-Identifier: Apache-2.0
+#
+# user_mgr.c is built directly (no gzm module, no filesystem): give it the
+# same limits as gzm/lib/user_mgr/Kconfig.
+
+mainmenu "user_mgr mock tests"
+
+source "Kconfig.zephyr"
+
+config GZM_USER_MGR_MAX
+	int
+	default 8
+
+config GZM_USER_MGR_FIRST_NAME_LEN
+	int
+	default 24
+
+config GZM_USER_MGR_LAST_NAME_LEN
+	int
+	default 36
+
+config GZM_USER_MGR_PASSWORD_MAX_LEN
+	int
+	default 32
+
+config GZM_USER_MGR_SALT_LEN
+	int
+	default 16
+
+config GZM_USER_MGR_PBKDF2_ITERATIONS
+	int
+	default 1000

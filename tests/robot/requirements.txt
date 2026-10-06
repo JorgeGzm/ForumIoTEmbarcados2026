@@ -1,0 +1,3 @@
+# Acceptance suite on the board: pip install -r tests/robot/requirements.txt
+robotframework>=7.0
+robotframework-seriallibrary>=0.4.3

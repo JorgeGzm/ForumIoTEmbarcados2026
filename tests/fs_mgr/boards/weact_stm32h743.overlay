@@ -1,0 +1,21 @@
+/*
+ * Hardware test build: console/shell on UART4 (PA0/PA1), the same
+ * adapter used for firmware updates doubles as the Twister
+ * --device-serial port. The app image links at slot0 (sysbuild).
+ */
+
+/ {
+	chosen {
+		zephyr,console = &uart4;
+		zephyr,shell-uart = &uart4;
+		zephyr,code-partition = &slot0_partition;
+		app,users-partition = &storage_partition;
+	};
+};
+
+&uart4 {
+	pinctrl-0 = <&uart4_tx_pa0 &uart4_rx_pa1>;
+	pinctrl-names = "default";
+	current-speed = <115200>;
+	status = "okay";
+};

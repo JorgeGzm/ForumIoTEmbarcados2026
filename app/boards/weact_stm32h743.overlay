@@ -1,0 +1,12 @@
+/*
+ * Application overlay:
+ * - user store (LittleFS) on the SPI NOR (W25Q64, storage_partition)
+ * - application image linked into slot0 (MCUboot primary)
+ */
+
+/ {
+	chosen {
+		zephyr,code-partition = &slot0_partition;
+		app,users-partition = &storage_partition;
+	};
+};

@@ -1,0 +1,285 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "VIRTUAL_ENV": "${env:HOME}/zephyrproject/.venv",
+            "PATH": "${env:HOME}/zephyrproject/.venv/bin:${env:PATH}",
+            "ZEPHYR_BASE": "${workspaceFolder}/zephyr",
+            "ZEPHYR_SDK_INSTALL_DIR": "${env:HOME}/zephyr-sdk-1.0.1"
+        }
+    },
+    "inputs": [
+        {
+            "id": "serialPort",
+            "type": "promptString",
+            "description": "UART4 adapter (use the stable /dev/serial/by-id path)",
+            "default": "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5552003040-if00"
+        },
+        {
+            "id": "shellPort",
+            "type": "promptString",
+            "description": "App USB console (use the /dev/serial/by-id path: its ttyACM number changes after every reboot)",
+            "default": "/dev/serial/by-id/usb-GZM_Embedded_Systems_Do_Codigo_ao_Campo_Demo-if00"
+        },
+        {
+            "id": "confirmClean",
+            "type": "pickString",
+            "description": "Apagar zephyr/, modules/, bootloader/ e .west/? (só o que o west baixou)",
+            "options": [
+                "não",
+                "sim"
+            ],
+            "default": "não"
+        },
+        {
+            "id": "hostTest",
+            "type": "pickString",
+            "description": "Test folder to build for native_sim and debug",
+            "options": [
+                "user_mgr",
+                "user_mgr_mock",
+                "fs_mgr"
+            ],
+            "default": "user_mgr"
+        }
+    ],
+    "tasks": [
+        {
+            "label": "Manifest: Fetch (west init + update)",
+            "detail": "First run: west init -l manifest, west update (Zephyr, modules and MCUboot at the versions pinned in manifest/west.yml) and west zephyr-export.",
+            "type": "shell",
+            "command": "if [ -d .west ]; then echo '.west/ already exists: skipping west init'; else west init -l manifest; fi && west update && west zephyr-export",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true,
+                "clear": true,
+                "group": "setup workspace"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Manifest: Clean (apaga zephyr/, modules/, bootloader/, .west/)",
+            "detail": "Opposite of Manifest: Fetch. Deletes everything west downloaded and the west workspace marker (all git-ignored). Asks for confirmation.",
+            "type": "shell",
+            "command": "if [ \"${input:confirmClean}\" = \"sim\" ]; then for d in zephyr modules bootloader .west; do if [ -e \"$d\" ]; then echo \"removendo $d/\"; rm -rf \"$d\"; fi; done; echo 'Pronto. Rode \"Manifest: Fetch\" para baixar de novo.'; else echo 'Cancelado.'; fi",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true,
+                "clear": true,
+                "group": "setup workspace"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate Demo Keys",
+            "detail": "Generates the demo MCUboot signing/encryption keys (tools/keys/genkeys.sh).",
+            "type": "shell",
+            "command": "./tools/keys/genkeys.sh",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "setup workspace"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "West Build",
+            "detail": "Sysbuild (MCUboot + app) for weact_stm32h743 into app/build (-p auto), with app/debug.conf (all commented out by default).",
+            "type": "shell",
+            "command": "west build -b weact_stm32h743 --sysbuild -p auto -s app -d app/build -- -DBOARD_ROOT=${workspaceFolder} -Dapp_EXTRA_CONF_FILE=debug.conf",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "build"
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "West Build (v2.0.0)",
+            "detail": "Same build with VERSION_MAJOR = 2 into app/build_v200: the update image of the Robot tests 07-08. app/VERSION is put back at the end.",
+            "type": "shell",
+            "command": "mkdir -p app/build_v200 && cp app/VERSION app/build_v200/VERSION.factory && trap 'cp app/build_v200/VERSION.factory app/VERSION' EXIT && sed -i 's/^VERSION_MAJOR = .*/VERSION_MAJOR = 2/' app/VERSION && west build -b weact_stm32h743 --sysbuild -p auto -s app -d app/build_v200 -- -DBOARD_ROOT=${workspaceFolder} -Dapp_EXTRA_CONF_FILE=debug.conf",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "build"
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "West Flash (ST-Link)",
+            "detail": "Runs West Build, then flashes the mcuboot domain and the app domain through ST-Link (STM32CubeProgrammer from STM32CubeIDE). Also the preLaunchTask of the ST-Link debug configs.",
+            "dependsOn": ["West Build"],
+            "type": "shell",
+            "command": "west flash -d app/build --runner stm32cubeprogrammer --domain mcuboot && west flash -d app/build --runner stm32cubeprogrammer --domain app",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "VIRTUAL_ENV": "${env:HOME}/zephyrproject/.venv",
+                    "PATH": "${env:HOME}/zephyrproject/.venv/bin:/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.linux64_2.2.300.202508131133/tools/bin:${env:PATH}",
+                    "ZEPHYR_BASE": "${workspaceFolder}/zephyr",
+                    "ZEPHYR_SDK_INSTALL_DIR": "${env:HOME}/zephyr-sdk-1.0.1"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "flash"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Serial Update (GUI)",
+            "detail": "Opens the serial updater GUI.",
+            "type": "shell",
+            "command": "python3 tools/flasher/fw_update_gui.py",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "group": "flash"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Native Build",
+            "detail": "Builds the app for native_sim/native/64 into app/build_native, with app/debug.conf. Also the preLaunchTask of the native_sim debug config.",
+            "type": "shell",
+            "command": "west build -b native_sim/native/64 -p auto -s app -d app/build_native -- -DBOARD_ROOT=${workspaceFolder} -DEXTRA_CONF_FILE=debug.conf",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "native"
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Test Build (native_sim debug)",
+            "detail": "Builds one tests/<folder> for native_sim/native/64 at -Og into tests/build_debug (pristine when the folder changes). Used by the test debug launch.",
+            "type": "shell",
+            "command": "west build -b native_sim/native/64 -p auto -s tests/${input:hostTest} -d tests/build_debug -- -DBOARD_ROOT=${workspaceFolder} -DCONFIG_DEBUG_OPTIMIZATIONS=y",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "native"
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Native Run",
+            "detail": "Runs the native_sim executable from app/build_native, where flash.bin (the simulated NOR with the users) lives, same as the native_sim debug config.",
+            "type": "shell",
+            "command": "cd app/build_native && ./zephyr/zephyr.exe",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true,
+                "group": "native"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Twister (host)",
+            "detail": "Runs tests/ on native_sim/native/64 (twister-out).",
+            "type": "shell",
+            "command": "west twister --board-root . -T tests -p native_sim/native/64 -O twister-out",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "test"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Twister (device)",
+            "detail": "Runs tests/ on the weact_stm32h743, flashing over UART (tools/twister/flash_uart.py) (twister-out-device).",
+            "type": "shell",
+            "command": "west twister --board-root . -T tests -p weact_stm32h743 --device-testing --device-serial ${input:serialPort} --flash-before --device-flash-timeout 60 --flash-command ${workspaceFolder}/tools/twister/flash_uart.py -O twister-out-device -j 1",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "test"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Robot (board acceptance)",
+            "detail": "Both acceptance suites on the board, 01-08: users, then firmware update (tests/robot/results/report.html).",
+            "type": "shell",
+            "command": "UPDATE_PORT=${input:serialPort} SHELL_PORT=${input:shellPort} tests/robot/run.sh --exclude speed",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "test"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Robot (users)",
+            "detail": "Suite 01__users.robot, tests 01-05: factory version, add, block, delete, the 50-user limit. USB console only, ~40 s.",
+            "type": "shell",
+            "command": "UPDATE_PORT=${input:serialPort} SHELL_PORT=${input:shellPort} tests/robot/run.sh --include users",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "test"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Robot (firmware update)",
+            "detail": "Suite 02__firmware_update.robot, tests 06-08: unsigned image refused, rollback, confirmed update keeps the users. Needs West Build and West Build (v2.0.0).",
+            "type": "shell",
+            "command": "UPDATE_PORT=${input:serialPort} SHELL_PORT=${input:shellPort} tests/robot/run.sh --include update",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "test"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Robot (upload speed)",
+            "detail": "Same image to MCUboot slot1 with mcumgr and with smpclient, timed; the board stays on v1.0.0 (tests/robot/results/report.html).",
+            "type": "shell",
+            "command": "UPDATE_PORT=${input:serialPort} SHELL_PORT=${input:shellPort} tests/robot/run.sh --include speed",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "test"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Twister Coverage (host)",
+            "detail": "Runs every test in tests/ on native_sim/native/64 with gcovr coverage of gzm/ (twister-out-coverage/coverage/index.html).",
+            "type": "shell",
+            "command": "ZEPHYR_TOOLCHAIN_VARIANT=zephyr west twister --board-root . -T tests -p native_sim/native/64 --coverage --coverage-tool gcovr --coverage-basedir gzm -O twister-out-coverage",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "group": "test"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

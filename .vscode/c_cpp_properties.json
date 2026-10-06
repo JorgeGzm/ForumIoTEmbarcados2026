@@ -1,0 +1,33 @@
+{
+    // IntelliSense configurations, picked in the status bar (C/C++).
+    // Each build has its own Kconfig, so the greyed-out #ifdef CONFIG_...
+    // blocks differ: pick the one of the build you are reading or debugging.
+    //  - "STM32": empty, so it takes the C_Cpp.default.* values of
+    //    .vscode/settings.json (app + MCUboot of app/build).
+    //  - "native_sim": the build of "App Debug (native_sim)".
+    //  - "native_sim test": the build of "Test Debug (native_sim)".
+    "configurations": [
+        {
+            "name": "STM32"
+        },
+        {
+            "name": "native_sim",
+            "compileCommands": "${workspaceFolder}/app/build_native/compile_commands.json",
+            "forcedInclude": [
+                "${workspaceFolder}/app/build_native/zephyr/include/generated/zephyr/autoconf.h"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "intelliSenseMode": "linux-gcc-x64"
+        },
+        {
+            "name": "native_sim test",
+            "compileCommands": "${workspaceFolder}/tests/build_debug/compile_commands.json",
+            "forcedInclude": [
+                "${workspaceFolder}/tests/build_debug/zephyr/include/generated/zephyr/autoconf.h"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

@@ -1,0 +1,107 @@
+{
+    // Debug with cortex-debug (marus25.cortex-debug).
+    //
+    // Same flow as ZPHR-STM32-0003: the preLaunchTask runs the normal build
+    // (app/debug.conf: uncomment CONFIG_DEBUG_OPTIMIZATIONS for -Og) and
+    // "west flash" per domain (mcuboot, then the signed app); the
+    // debugger itself loads nothing (loadFiles: []) and uses the ELF only for
+    // symbols. Loading the plain ELF would erase the MCUboot header in slot0.
+    //
+    // MCUboot notes:
+    //  - MCUboot waits for serial recovery before jumping to the app (~10 s in
+    //    practice for the 5 s setting), so "run to main" takes that long.
+    //  - MCUboot starts the IWDG (20 s) without pause-on-debug: the post-launch
+    //    commands freeze it while the core is halted (DBGMCU_APB4FZ1.DBG_IWDG1).
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // native_sim: the app is a Linux program (zephyr.exe), debugged
+            // with the host gdb. Simulated time stops at a breakpoint, so no
+            // timeout or watchdog fires while you look around. The SDL window
+            // shows the display; the shell is on the pseudo-terminal printed
+            // at start. cwd is the build folder: flash.bin (the simulated NOR
+            // with the users) is created there and kept between sessions.
+            "name": "App Debug (native_sim)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/app/build_native/zephyr/zephyr.exe",
+            "cwd": "${workspaceFolder}/app/build_native",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "setupCommands": [
+                { "description": "Pretty printing", "text": "-enable-pretty-printing", "ignoreFailures": true },
+                { "description": "No debuginfod prompt", "text": "set debuginfod enabled off", "ignoreFailures": true }
+            ],
+            "preLaunchTask": "Native Build"
+        },
+        {
+            // One ztest folder (user_mgr, user_mgr_mock or fs_mgr) on
+            // native_sim, picked when the build task starts. Put a
+            // breakpoint in the ZTEST or in gzm/lib and run: the suite runs
+            // in the debug console. Pick "native_sim test" in the C/C++
+            // status bar for the right IntelliSense.
+            "name": "Test Debug (native_sim)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/tests/build_debug/zephyr/zephyr.exe",
+            "cwd": "${workspaceFolder}/tests/build_debug",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "setupCommands": [
+                { "description": "Pretty printing", "text": "-enable-pretty-printing", "ignoreFailures": true },
+                { "description": "No debuginfod prompt", "text": "set debuginfod enabled off", "ignoreFailures": true }
+            ],
+            "preLaunchTask": "Test Build (native_sim debug)"
+        },
+        {
+            "name": "App Debug (ST-Link)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "stlink",
+            "device": "STM32H743VI",
+            "interface": "swd",
+            "cwd": "${workspaceFolder}",
+            "executable": "app/build/app/zephyr/zephyr.elf",
+            "loadFiles": [],
+            "gdbPath": "${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
+            "serverpath": "/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.stlink-gdb-server.linux64_2.2.300.202509021040/tools/bin/ST-LINK_gdbserver",
+            "stm32cubeprogrammer": "/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.linux64_2.2.300.202508131133/tools/bin",
+            "svdFile": "${workspaceFolder}/tools/debug/STM32H743.svd",
+            "runToEntryPoint": "main",
+            "preLaunchTask": "West Flash (ST-Link)",
+            "postLaunchCommands": ["set *(volatile unsigned int *)0x5C001054 |= 0x40000"],
+            "postRestartCommands": ["set *(volatile unsigned int *)0x5C001054 |= 0x40000"],
+            "liveWatch": { "enabled": true, "samplesPerSecond": 4 }
+        },
+        {
+            // MCUboot itself (boot_go, swap, serial recovery). The reset
+            // vector at 0x08000000 is MCUboot's, so "run to main" stops in
+            // MCUboot's main. Same build as the app: for -Og uncomment
+            // CONFIG_DEBUG_OPTIMIZATIONS in app/sysbuild/mcuboot.conf (the DFU
+            // window and the swap then run slower than at -Os).
+            // IntelliSense already reads MCUboot's autoconf.h and
+            // compile_commands.json (.vscode/settings.json).
+            "name": "MCUboot Debug (ST-Link)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "stlink",
+            "device": "STM32H743VI",
+            "interface": "swd",
+            "cwd": "${workspaceFolder}",
+            "executable": "app/build/mcuboot/zephyr/zephyr.elf",
+            "loadFiles": [],
+            "gdbPath": "${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
+            "serverpath": "/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.stlink-gdb-server.linux64_2.2.300.202509021040/tools/bin/ST-LINK_gdbserver",
+            "stm32cubeprogrammer": "/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.linux64_2.2.300.202508131133/tools/bin",
+            "svdFile": "${workspaceFolder}/tools/debug/STM32H743.svd",
+            "runToEntryPoint": "main",
+            "preLaunchTask": "West Flash (ST-Link)",
+            "postLaunchCommands": ["set *(volatile unsigned int *)0x5C001054 |= 0x40000"],
+            "postRestartCommands": ["set *(volatile unsigned int *)0x5C001054 |= 0x40000"]
+        }
+    ]
+}

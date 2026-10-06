@@ -1,0 +1,17 @@
+# Copyright (c) 2026 GZM Embarcados
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "Do Codigo ao Campo demo"
+
+source "Kconfig.zephyr"
+
+config APP_ADMIN_ID
+	int "Default admin id (created on the first boot)"
+	default 1
+
+config APP_ADMIN_PASSWORD
+	string "Default admin password (first boot only)"
+	default "1234"
+	help
+	  Demo value, known by the Robot Framework suite. A product sets a
+	  per-device password at the factory.

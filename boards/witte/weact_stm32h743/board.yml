@@ -1,0 +1,6 @@
+board:
+  name: weact_stm32h743
+  full_name: Weact STM32H743 Core Board
+  vendor: witte
+  socs:
+    - name: stm32h743xx

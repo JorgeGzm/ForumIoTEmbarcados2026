@@ -1,0 +1,88 @@
+{
+    // ===========================================
+    // Python Env config
+    // ===========================================
+
+    "python.defaultInterpreterPath": "${env:HOME}/zephyrproject/.venv/bin/python3",
+    "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "terminal.integrated.env.linux": {
+        "VIRTUAL_ENV": "${env:HOME}/zephyrproject/.venv",
+        "PATH": "${env:HOME}/zephyrproject/.venv/bin:${env:PATH}",
+        "ZEPHYR_BASE": "${workspaceFolder}/zephyr",
+        "ZEPHYR_SDK_INSTALL_DIR": "${env:HOME}/zephyr-sdk-1.0.1"
+    },
+
+    // ===========================================
+    // CORTEX-DEBUG SETTINGS
+    // ===========================================
+
+    "cortex-debug.armToolchainPath": "${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin",
+    "cortex-debug.armToolchainPrefix": "arm-zephyr-eabi",
+    "cortex-debug.gdbPath": "${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
+    "cortex-debug.openocdPath": "${env:HOME}/zephyr-sdk-1.0.1/hosttools/sysroots/x86_64-pokysdk-linux/usr/bin/openocd",
+    "cortex-debug.variableUseNaturalFormat": true,
+
+    // ===========================================
+    // C/C++ VISUAL SETTINGS
+    // ===========================================
+    // IntelliSense follows the board build (app/build, sysbuild), both
+    // images: the app and MCUboot. Each compile_commands.json gives the
+    // flags of every file compiled for that image, and each autoconf.h its
+    // CONFIG_* values, so code under a disabled #ifdef CONFIG_... is
+    // greyed out. Build once before opening the sources. For the
+    // native_sim build pick "native_sim" in the status bar
+    // (.vscode/c_cpp_properties.json).
+
+    "cmake.configureOnOpen": false,
+    "C_Cpp.default.defines": [
+        "__CDT_PARSER__"
+    ],
+    "C_Cpp.default.compileCommands": [
+        "${workspaceFolder}/app/build/app/compile_commands.json",
+        "${workspaceFolder}/app/build/mcuboot/compile_commands.json"
+    ],
+    "C_Cpp.default.forcedInclude": [
+        "${workspaceFolder}/app/build/app/zephyr/include/generated/zephyr/autoconf.h",
+        "${workspaceFolder}/app/build/mcuboot/zephyr/include/generated/zephyr/autoconf.h"
+    ],
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/zephyr/include/**"
+    ],
+    "C_Cpp.default.mergeConfigurations": true,
+    "C_Cpp.default.compilerPath": "${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc",
+    "C_Cpp.default.cStandard": "c17",
+    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.intelliSenseMode": "linux-gcc-arm",
+
+    // C/C++ inactive code style settings
+    "C_Cpp.inactiveRegionOpacity": 1,
+    "C_Cpp.inactiveRegionBackgroundColor": "#000000",
+    "C_Cpp.inactiveRegionForegroundColor": "#ffffff",
+
+    // ===========================================
+    // Testing panel
+    // ===========================================
+    // Robot: RobotCode (d-biehl.robotcode) lists tests/robot/suites. The
+    // tests run on the board: check the ports below (by-id paths) and
+    // close picocom first. Tests 01-08 build on each other, run the suite.
+
+    "robotcode.robot.paths": [
+        "tests/robot/suites"
+    ],
+    "robotcode.robot.outputDir": "tests/robot/results",
+    "robotcode.robot.variables": {
+        "UPDATE_PORT": "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5552003040-if00",
+        "SHELL_PORT": "/dev/serial/by-id/usb-GZM_Embedded_Systems_Do_Codigo_ao_Campo_Demo-if00"
+    },
+
+    // ===========================================
+    // Editor
+    // ===========================================
+
+    "workbench.editor.enablePreview": false,
+    "workbench.editor.enablePreviewFromQuickOpen": false,
+    "terminal.integrated.scrollback": 50000,
+    "cmake.sourceDirectory": "/home/jaga/Downloads/embarcados-workspace/ForumIoTEmbarcados2026/app"
+}

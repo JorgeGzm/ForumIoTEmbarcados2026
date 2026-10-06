@@ -1,0 +1,9 @@
+#
+# Copyright (c) 2026 GZM Embarcados
+#
+
+menu "GZM Zephyr Modules"
+
+rsource "../lib/Kconfig"
+
+endmenu

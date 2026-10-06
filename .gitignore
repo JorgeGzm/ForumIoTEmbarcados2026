@@ -1,0 +1,20 @@
+# West workspace (created by 'west init -l manifest && west update')
+/.west/
+/zephyr/
+/modules/
+/bootloader/
+
+# Build output
+app/build*/
+twister-out*/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Demo signing keys, generated locally by tools/keys/genkeys.sh
+tools/keys/*.pem
+tools/flasher/.venv/
+build-renode/
+tests/build*/

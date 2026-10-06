@@ -1,0 +1,23 @@
+/*
+ * MCUboot overlay for the WeAct MiniSTM32H743 demo.
+ * - mcumgr (SMP serial recovery) on UART4: TX PA0 / RX PA1 @ 921600
+ * - slot1 lives on the QSPI NOR flash (see board DTS)
+ */
+
+/ {
+	chosen {
+		zephyr,uart-mcumgr = &uart4;
+		zephyr,code-partition = &boot_partition;
+	};
+
+	aliases {
+		mcuboot-led0 = &user_led;
+	};
+};
+
+&uart4 {
+	pinctrl-0 = <&uart4_tx_pa0 &uart4_rx_pa1>;
+	pinctrl-names = "default";
+	current-speed = <921600>;
+	status = "okay";
+};

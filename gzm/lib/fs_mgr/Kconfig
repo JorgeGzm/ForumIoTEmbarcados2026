@@ -1,0 +1,14 @@
+#
+# Copyright (c) 2026 GZM Embarcados
+#
+
+config GZM_FS_MGR
+	bool "Filesystem manager (mount + high-level file helpers)"
+	depends on FILE_SYSTEM
+	default n
+	help
+	  Filesystem manager with mount/format/deinit, one-shot file
+	  read/write/delete, directory listing, disk space info, and
+	  mkdir-if-not-exists helper.
+
+	  Formerly: zlib/xfs (CONFIG_ZLIB_FS).

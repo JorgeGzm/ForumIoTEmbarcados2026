@@ -1,0 +1,26 @@
+manifest:
+  self:
+    path: manifest
+
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    # Pinned to a release for demo stability (talk: "Do Código ao Campo").
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.4.1
+      import:
+        # Clone only the modules this demo needs.
+        name-allowlist:
+          - cmsis            # ARM Cortex-A/R headers
+          - cmsis_6          # ARM Cortex-M headers (CMSIS 6)
+          - hal_stm32        # STM32 HAL (STM32H743)
+          - picolibc         # C library
+          - littlefs         # LittleFS (user store on the SPI NOR)
+          - lvgl             # LVGL graphics library
+          - mbedtls          # crypto (MCUboot, PBKDF2 of the user passwords)
+          - tf-psa-crypto    # required by mbedtls >= 4.x
+          - mcuboot          # bootloader + imgtool
+          - zcbor            # CBOR (MCUboot serial recovery / SMP)

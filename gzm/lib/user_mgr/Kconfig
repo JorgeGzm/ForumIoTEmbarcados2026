@@ -1,0 +1,76 @@
+#
+# Copyright (c) 2026 GZM Embarcados
+#
+
+config GZM_USER_MGR
+	bool "User manager (accounts with PBKDF2-HMAC-SHA256 hashed passwords)"
+	default n
+	depends on FILE_SYSTEM
+	depends on PSA_CRYPTO_CLIENT
+	select CRC
+	select GZM_FS_MGR
+	select PSA_WANT_ALG_PBKDF2_HMAC
+	select PSA_WANT_ALG_HMAC
+	select PSA_WANT_ALG_SHA_256
+	select ENTROPY_GENERATOR
+	help
+	  Passwords are derived with PBKDF2-HMAC-SHA256 through the PSA
+	  Crypto API (CONFIG_PSA_CRYPTO).
+
+	  Account store with one file per user on any Zephyr filesystem
+	  (FatFS, LittleFS, …).  Passwords are never persisted in the
+	  clear: the library keeps only the salt, iteration count and
+	  PBKDF2-HMAC-SHA256 derived key.  Lookups hit an in-RAM sorted
+	  index (O(log n)); disk I/O only runs on create/update/delete
+	  and on boot while the index is loaded.
+
+if GZM_USER_MGR
+
+config GZM_USER_MGR_MAX
+	int "Maximum number of users"
+	default 50
+	range 1 10000
+	help
+	  Capacity of the store: user_mgr_add() returns -ENOSPC once it is
+	  full. Also the size of the in-RAM index (8 bytes per user).
+
+config GZM_USER_MGR_FIRST_NAME_LEN
+	int "Maximum first-name length (bytes, excluding null terminator)"
+	default 24
+	range 4 128
+
+config GZM_USER_MGR_LAST_NAME_LEN
+	int "Maximum last-name length (bytes, excluding null terminator)"
+	default 36
+	range 4 128
+
+config GZM_USER_MGR_PASSWORD_MAX_LEN
+	int "Maximum accepted password length (bytes, excluding null terminator)"
+	default 32
+	range 4 128
+	help
+	  Upper bound on the password that may be passed to
+	  user_mgr_add / user_mgr_set_password / user_mgr_login.  Not
+	  stored on disk.
+
+config GZM_USER_MGR_SALT_LEN
+	int "Salt length in bytes"
+	default 16
+	range 8 32
+
+config GZM_USER_MGR_PBKDF2_ITERATIONS
+	int "Default PBKDF2-HMAC-SHA256 iterations"
+	default 10000
+	range 1000 200000
+	help
+	  Applied on every new account and whenever a password is
+	  changed.  Existing records keep whatever iteration count they
+	  were created with, so raising this here is safe for forward
+	  migration.
+
+config GZM_USER_MGR_SHELL
+	bool "Shell commands (user …)"
+	default y
+	depends on SHELL
+
+endif # GZM_USER_MGR

@@ -1,0 +1,24 @@
+/* Same partition as the app on native_sim: the stock storage
+ * partition is only 16 KB, so grow the simulated flash to 4 MB and give
+ * the users a 1 MB partition after the default layout. */
+
+/ {
+	chosen {
+		app,users-partition = &users_partition;
+	};
+};
+
+&flashcontroller0 {
+	reg = <0x00000000 DT_SIZE_M(4)>;
+};
+
+&flash0 {
+	reg = <0x00000000 DT_SIZE_M(4)>;
+
+	partitions {
+		users_partition: partition@200000 {
+			label = "users";
+			reg = <0x00200000 DT_SIZE_M(1)>;
+		};
+	};
+};
