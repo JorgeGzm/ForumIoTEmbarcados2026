@@ -7,7 +7,6 @@ macOS and Windows with a stock Python 3.8+.
 """
 
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -100,34 +99,3 @@ def ensure_tk():
         "win32": "reinstall Python from python.org with the 'tcl/tk' option",
     }.get(sys.platform, "install the Tk bindings for your Python")
     sys.exit("error: tkinter is not available.\nTo install it:\n  " + msg)
-
-
-def ensure_mcumgr(log=print):
-    """Find the mcumgr CLI; offer to install it via Go when possible."""
-    exe = "mcumgr.exe" if os.name == "nt" else "mcumgr"
-    candidates = [
-        shutil.which("mcumgr"),
-        str(Path.home() / "go" / "bin" / exe),
-    ]
-    for path in candidates:
-        if path and os.path.isfile(path) and os.access(path, os.X_OK):
-            return path
-
-    go = shutil.which("go")
-    if go:
-        log("[setup] mcumgr not found, installing it with Go "
-            "(github.com/apache/mynewt-mcumgr-cli)...")
-        try:
-            subprocess.check_call(
-                [go, "install",
-                 "github.com/apache/mynewt-mcumgr-cli/mcumgr@latest"])
-        except subprocess.CalledProcessError as exc:
-            raise RuntimeError(f"go install mcumgr failed: {exc}") from exc
-        path = str(Path.home() / "go" / "bin" / exe)
-        if os.path.isfile(path):
-            log(f"[setup] mcumgr installed at {path}")
-            return path
-
-    raise RuntimeError(
-        "mcumgr CLI not found. Install Go (https://go.dev/dl/) and run:\n"
-        "  go install github.com/apache/mynewt-mcumgr-cli/mcumgr@latest")

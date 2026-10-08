@@ -1,7 +1,7 @@
 {
     // Debug with cortex-debug (marus25.cortex-debug).
     //
-    // Same flow as ZPHR-STM32-0003: the preLaunchTask runs the normal build
+    // The preLaunchTask runs the normal build
     // (app/debug.conf: uncomment CONFIG_DEBUG_OPTIMIZATIONS for -Og) and
     // "west flash" per domain (mcuboot, then the signed app); the
     // debugger itself loads nothing (loadFiles: []) and uses the ELF only for

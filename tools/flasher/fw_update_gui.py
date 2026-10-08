@@ -241,7 +241,7 @@ class UpdaterGui(tk.Tk):
     def _worker(self, port, image, console):
         q = self._queue
         try:
-            run_update(port, image, console_port=console, client="smpclient",
+            run_update(port, image, console_port=console,
                        log=lambda line: q.put(("log", line, None)),
                        progress=lambda pct: q.put(("progress", pct, None)),
                        status=lambda text: q.put(("status", text, None)),

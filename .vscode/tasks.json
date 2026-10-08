@@ -220,7 +220,7 @@
             "label": "Robot (board acceptance)",
             "detail": "Both acceptance suites on the board, 01-08: users, then firmware update (tests/robot/results/report.html).",
             "type": "shell",
-            "command": "UPDATE_PORT=${input:serialPort} SHELL_PORT=${input:shellPort} tests/robot/run.sh --exclude speed",
+            "command": "UPDATE_PORT=${input:serialPort} SHELL_PORT=${input:shellPort} tests/robot/run.sh",
             "presentation": {
                 "reveal": "always",
                 "panel": "shared",
@@ -247,19 +247,6 @@
             "detail": "Suite 02__firmware_update.robot, tests 06-08: unsigned image refused, rollback, confirmed update keeps the users. Needs West Build and West Build (v2.0.0).",
             "type": "shell",
             "command": "UPDATE_PORT=${input:serialPort} SHELL_PORT=${input:shellPort} tests/robot/run.sh --include update",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared",
-                "clear": true,
-                "group": "test"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Robot (upload speed)",
-            "detail": "Same image to MCUboot slot1 with mcumgr and with smpclient, timed; the board stays on v1.0.0 (tests/robot/results/report.html).",
-            "type": "shell",
-            "command": "UPDATE_PORT=${input:serialPort} SHELL_PORT=${input:shellPort} tests/robot/run.sh --include speed",
             "presentation": {
                 "reveal": "always",
                 "panel": "shared",

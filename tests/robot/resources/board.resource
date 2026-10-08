@@ -9,8 +9,7 @@ Library           String
 *** Variables ***
 ${ROOT}           ${CURDIR}/../../..
 ${SHELL_PORT}     /dev/serial/by-id/usb-GZM_Embedded_Systems_Do_Codigo_ao_Campo_Demo-if00
-${UPDATE_PORT}    /dev/ttyUSB0
-${MCUMGR}         %{HOME}/go/bin/mcumgr
+${UPDATE_PORT}    /dev/serial/by-id/usb-1a86_USB_Single_Serial_5552003040-if00
 ${PROMPT}         uart:~$
 ${BOOT_TIMEOUT}   180s
 
@@ -96,13 +95,13 @@ Delete Pattern Users
     END
 
 Update Firmware
-    [Documentation]    Run our updater (tools/flasher/fw_update.py) with
-    ...                smpclient, the client of the GUI: reboot into MCUboot,
-    ...                upload to slot1, image test, reset.
+    [Documentation]    Run our updater (tools/flasher/fw_update.py, the same
+    ...                core as the GUI): reboot into MCUboot, upload to slot1,
+    ...                image test, reset.
     [Arguments]    ${image}
     Close Board Shell
     ${r}=    Run Process    python3    ${ROOT}/tools/flasher/fw_update.py
-    ...    -p    ${UPDATE_PORT}    -c    ${SHELL_PORT}    --client    smpclient    ${image}
+    ...    -p    ${UPDATE_PORT}    -c    ${SHELL_PORT}    ${image}
     ...    timeout=300s    stderr=STDOUT
     Log    ${r.stdout}
     RETURN    ${r}
@@ -110,5 +109,5 @@ Update Firmware
 Reset Board From Recovery
     [Documentation]    Leave MCUboot serial recovery (it stays there after
     ...                a failed update) and boot the app again.
-    Run Process    ${MCUMGR}    --conntype    serial
-    ...    --connstring    ${UPDATE_PORT},baud\=921600    -t    5    reset    timeout=20s
+    Run Process    python3    ${ROOT}/tools/flasher/fw_update.py
+    ...    -p    ${UPDATE_PORT}    --reset    timeout=30s

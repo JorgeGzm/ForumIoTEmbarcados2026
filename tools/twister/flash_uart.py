@@ -7,15 +7,19 @@ Used with:
 
 No SWD probe needed. The board is rebooted by software into the MCUboot
 serial-recovery window, the signed (+encrypted) test image is uploaded to
-slot1 and confirmed, then MCUboot swaps it in. Twister attaches to the
-same UART afterwards (--flash-before) to read the ztest output.
+slot1 with smpclient and confirmed, then MCUboot swaps it in. Twister
+attaches to the same UART afterwards (--flash-before) to read the ztest
+output.
 
 Reboot paths tried, in order (whichever image is running answers one):
   - demo app  : "boot reboot" on its USB console (--console, optional)
   - test image: "kernel reboot cold" on the UART4 shell at 115200
+
+smpclient[serial] is installed on first use into tools/flasher/.venv.
 """
 
 import argparse
+import asyncio
 import glob
 import os
 import sys
@@ -23,14 +27,20 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "flasher"))
 
+from bootstrap import ensure_smpclient  # noqa: E402
+
+ensure_smpclient()
+
 import serial  # noqa: E402
+from smpclient.generics import success  # noqa: E402
+from smpclient.requests.image_management import ImageStatesRead, ImageStatesWrite  # noqa: E402
+from smpclient.requests.os_management import ResetWrite  # noqa: E402
 
-from bootstrap import ensure_mcumgr  # noqa: E402
-from serial_transport import SerialTransport  # noqa: E402
+from updater import smp_wait_recovery  # noqa: E402
 
-RECOVERY_BAUD = "921600"
+RECOVERY_BAUD = 921600
 TEST_CONSOLE_BAUD = 115200
-IMAGE_SLOT1 = "2"
+IMAGE_SLOT1 = 2
 
 
 def default_port(pattern, fallback=None):
@@ -79,15 +89,57 @@ def reboot_to_recovery(uart, console):
     send_line(uart, TEST_CONSOLE_BAUD, "kernel reboot cold")
 
 
-def wait_recovery(transport, timeout_s=30):
-    # MCUboot listens for only 5 s after reset: poll every ~2 s
-    deadline = time.monotonic() + timeout_s
-    while time.monotonic() < deadline:
-        # never kill mcumgr mid-frame: its own -t must expire first
-        ok, _, _ = transport.run(["-t", "2", "echo", "hello"], timeout=5)
-        if ok:
-            return True
-    return False
+def slot1_hash(states):
+    for image in states.images:
+        if image.slot == 1 and image.hash:
+            return bytes(image.hash)
+    return None
+
+
+async def flash(args):
+    image = find_image(args.build_dir)
+    data = open(image, "rb").read()
+
+    client = None
+    if args.no_reboot:
+        log(f"waiting up to {args.wait}s for a manual reset...")
+        client = await smp_wait_recovery(args.uart, RECOVERY_BAUD, args.wait)
+    else:
+        for attempt in range(1, 4):
+            log(f"rebooting into MCUboot recovery (attempt {attempt})")
+            reboot_to_recovery(args.uart, args.console)
+            client = await smp_wait_recovery(args.uart, RECOVERY_BAUD, args.wait)
+            if client:
+                break
+    if not client:
+        sys.exit("[flash_uart] MCUboot serial recovery not detected")
+
+    try:
+        log(f"uploading {os.path.relpath(image, args.build_dir)} ({len(data)} B)")
+        start = time.monotonic()
+        async for _ in client.upload(data, slot=IMAGE_SLOT1, first_timeout_s=60,
+                                     subsequent_timeout_s=10):
+            pass
+        log(f"uploaded in {time.monotonic() - start:.1f} s")
+
+        states = await client.request(ImageStatesRead(), timeout_s=60)
+        image_hash = slot1_hash(states) if success(states) else None
+        if not image_hash:
+            sys.exit("[flash_uart] uploaded image not found in slot1")
+
+        # confirm = permanent swap: the test image must survive later resets
+        rsp = await client.request(ImageStatesWrite(hash=image_hash, confirm=True),
+                                   timeout_s=60)
+        if not success(rsp):
+            sys.exit(f"[flash_uart] image confirm failed: {rsp}")
+
+        try:
+            await client.request(ResetWrite(), timeout_s=5)
+        except Exception:  # noqa: BLE001 - MCUboot may reset before answering
+            pass
+        log("image confirmed; MCUboot will swap and boot it")
+    finally:
+        await client.disconnect()
 
 
 def main():
@@ -102,44 +154,7 @@ def main():
                         help="do not reboot by software; wait for a manual reset")
     parser.add_argument("--wait", type=int, default=30,
                         help="seconds to wait for the MCUboot recovery window")
-    args = parser.parse_args()
-
-    image = find_image(args.build_dir)
-    transport = SerialTransport(ensure_mcumgr(log=log), args.uart, RECOVERY_BAUD)
-
-    if args.no_reboot:
-        log(f"waiting up to {args.wait}s for a manual reset...")
-        if not wait_recovery(transport, args.wait):
-            sys.exit("[flash_uart] MCUboot serial recovery not detected")
-    else:
-        for attempt in range(1, 4):
-            log(f"rebooting into MCUboot recovery (attempt {attempt})")
-            reboot_to_recovery(args.uart, args.console)
-            if wait_recovery(transport, args.wait):
-                break
-        else:
-            sys.exit("[flash_uart] MCUboot serial recovery not detected")
-
-    log(f"uploading {os.path.relpath(image, args.build_dir)}")
-    ok, _, err = transport.run(
-        ["-t", "120", "-w", "5", "image", "upload", "-n", IMAGE_SLOT1, image],
-        timeout=600)
-    if not ok:
-        sys.exit(f"[flash_uart] upload failed: {err.strip()}")
-
-    ok, out, err = transport.run(["-t", "60", "image", "list"], timeout=90)
-    image_hash = SerialTransport.parse_hash(out) if ok else None
-    if not image_hash:
-        sys.exit(f"[flash_uart] uploaded image not found in slot1 {err.strip()}")
-
-    # confirm = permanent swap: the test image must survive later resets
-    ok, _, err = transport.run(["-t", "60", "image", "confirm", image_hash],
-                               timeout=90)
-    if not ok:
-        sys.exit(f"[flash_uart] image confirm failed: {err.strip()}")
-
-    transport.run(["-t", "5", "reset"], timeout=15)
-    log("image confirmed; MCUboot will swap and boot it")
+    asyncio.run(flash(parser.parse_args()))
 
 
 if __name__ == "__main__":

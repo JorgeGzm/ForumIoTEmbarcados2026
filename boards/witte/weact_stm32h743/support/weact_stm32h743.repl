@@ -2,7 +2,7 @@
 // of a weact_stm32h743 test build:
 //   dts2repl build/zephyr/zephyr.dts -o weact_stm32h743.repl
 // Models what Renode supports (CPU, RCC, GPIO, UART4, SPI, IWDG, memories);
-// the QSPI NOR, display and VL53L0X are not emulated.
+// the QSPI/SPI NORs and the display are not emulated.
 // Manual fix: dts2repl maps the H7 SPIs to SPI.STM32SPI (the F4 IP, other
 // register map); spi1/spi4 use SPI.STM32H7_SPI as in Renode's stm32h7.repl.
 // Manual fix: dts2repl omits the flash controller; flash is split in the two

@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # Acceptance tests on the real board (Robot Framework).
 #
-#   tests/robot/run.sh                         # all suites
+#   tests/robot/run.sh                         # all suites (01-08)
 #   tests/robot/run.sh --include users         # 01-05: users only, no update
 #   tests/robot/run.sh --include update        # 06-08: firmware update
-#   tests/robot/run.sh --exclude speed         # acceptance (01-08)
-#   tests/robot/run.sh --include speed         # upload speed: mcumgr vs smpclient
 #   UPDATE_PORT=<UART4> SHELL_PORT=<app USB> tests/robot/run.sh
 #
 # Ports: prefer the /dev/serial/by-id paths. The app USB console leaves and
@@ -15,7 +13,6 @@
 # Report: tests/robot/results/report.html
 set -eu
 cd "$(dirname "$0")"
-MCUMGR="${MCUMGR:-$(command -v mcumgr || echo "${HOME}/go/bin/mcumgr")}"
 UPDATE_PORT="${UPDATE_PORT:-/dev/serial/by-id/usb-1a86_USB_Single_Serial_5552003040-if00}"
 SHELL_PORT="${SHELL_PORT:-/dev/serial/by-id/usb-GZM_Embedded_Systems_Do_Codigo_ao_Campo_Demo-if00}"
 
@@ -46,5 +43,4 @@ fi
 exec robot --outputdir results \
 	--variable "UPDATE_PORT:${UPDATE_PORT}" \
 	--variable "SHELL_PORT:${SHELL_PORT}" \
-	--variable "MCUMGR:${MCUMGR}" \
 	"$@" suites

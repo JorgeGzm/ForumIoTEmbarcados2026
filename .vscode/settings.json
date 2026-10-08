@@ -20,7 +20,6 @@
     "cortex-debug.armToolchainPath": "${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin",
     "cortex-debug.armToolchainPrefix": "arm-zephyr-eabi",
     "cortex-debug.gdbPath": "${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
-    "cortex-debug.openocdPath": "${env:HOME}/zephyr-sdk-1.0.1/hosttools/sysroots/x86_64-pokysdk-linux/usr/bin/openocd",
     "cortex-debug.variableUseNaturalFormat": true,
 
     // ===========================================
@@ -66,7 +65,7 @@
     // ===========================================
     // Robot: RobotCode (d-biehl.robotcode) lists tests/robot/suites. The
     // tests run on the board: check the ports below (by-id paths) and
-    // close picocom first. Tests 01-08 build on each other, run the suite.
+    // close picocom first. Each suite runs on its own (its setup prepares the board).
 
     "robotcode.robot.paths": [
         "tests/robot/suites"
@@ -83,6 +82,5 @@
 
     "workbench.editor.enablePreview": false,
     "workbench.editor.enablePreviewFromQuickOpen": false,
-    "terminal.integrated.scrollback": 50000,
-    "cmake.sourceDirectory": "/home/jaga/Downloads/embarcados-workspace/ForumIoTEmbarcados2026/app"
+    "terminal.integrated.scrollback": 50000
 }

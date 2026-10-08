@@ -14,7 +14,6 @@ target_sources(app PRIVATE
   src/setup.c
   src/users_app.c
   src/ui_app.c
-  src/disp_test.c
   src/images/gzm_logo_160.c
 )
 

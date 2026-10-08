@@ -22,6 +22,7 @@ os comandos completos e os detalhes ficam aqui, com o mesmo número de capítulo
 
 | Capítulo | Assunto |
 |----------|---------|
+| [⚠️](#antes-de-começar-configure-para-a-sua-máquina) | **Antes de começar:** caminhos e portas que você precisa trocar para a sua máquina |
 | [01](#01--introdução-ao-zephyr) | Introdução ao Zephyr: hardware, arquivos do projeto, a app da demo |
 | [02](#02--simuladores) | Simuladores: native_sim e Renode |
 | [03](#03--manifest) | Manifest: workspace do west, build e gravação |
@@ -30,6 +31,93 @@ os comandos completos e os detalhes ficam aqui, com o mesmo número de capítulo
 | [06](#06--atualização-em-campo) | Atualização em campo: nosso atualizador (GUI) |
 | [07](#07--robot-framework) | Robot Framework: testes de aceitação na placa real |
 | [08](#08--rodando-a-demo) | Rodando a demo: a sequência ao vivo, debug, tasks do VS Code |
+
+---
+
+## Antes de começar: configure para a sua máquina
+
+> [!WARNING]
+> Os arquivos do `.vscode/` e os testes do Robot vêm com caminhos e portas da
+> máquina do autor. Antes de rodar qualquer task, confira os campos abaixo e
+> troque pelos valores da **sua** instalação. Se algum estiver errado, a task
+> falha logo no começo (`west: command not found`, `STM32_Programmer_CLI not
+> found`, `port not found`…).
+
+### 1. Zephyr: virtualenv e SDK
+
+O padrão é a instalação do
+[Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html):
+virtualenv em `~/zephyrproject/.venv` e Zephyr SDK **1.0.1** em
+`~/zephyr-sdk-1.0.1`. Se a sua é diferente (outra pasta, outra versão do SDK),
+troque nestes campos:
+
+| Arquivo | Campo | Valor do autor |
+|---------|-------|----------------|
+| `.vscode/tasks.json` | `options.env`: `VIRTUAL_ENV`, `PATH`, `ZEPHYR_SDK_INSTALL_DIR` (no topo e de novo na task "West Flash (ST-Link)") | `${env:HOME}/zephyrproject/.venv`, `${env:HOME}/zephyr-sdk-1.0.1` |
+| `.vscode/settings.json` | `python.defaultInterpreterPath`, `terminal.integrated.env.linux` | `${env:HOME}/zephyrproject/.venv/...` |
+| `.vscode/settings.json` | `cortex-debug.armToolchainPath`, `cortex-debug.gdbPath`, `C_Cpp.default.compilerPath` | `${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/...` |
+| `.vscode/launch.json` | `gdbPath` (nas duas configurações de ST-Link) | `${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb` |
+
+### 2. ST-Link: STM32CubeIDE (gravação e debug)
+
+A gravação e o debug usam o `STM32_Programmer_CLI` e o `ST-LINK_gdbserver` que
+vêm dentro do **STM32CubeIDE**. Os caminhos têm a versão do IDE e dos plugins,
+então quase nunca batem com outra instalação:
+
+| Arquivo | Campo | Valor do autor |
+|---------|-------|----------------|
+| `.vscode/tasks.json` | `PATH` da task "West Flash (ST-Link)" (a pasta do `STM32_Programmer_CLI`) | `/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.linux64_2.2.300.202508131133/tools/bin` |
+| `.vscode/launch.json` | `stm32cubeprogrammer` (nas duas configurações de ST-Link) | a mesma pasta acima |
+| `.vscode/launch.json` | `serverpath` (nas duas configurações de ST-Link) | `/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.stlink-gdb-server.linux64_2.2.300.202509021040/tools/bin/ST-LINK_gdbserver` |
+
+Para achar os seus:
+
+```bash
+find / -name STM32_Programmer_CLI -type f 2>/dev/null   # use a pasta (…/tools/bin)
+find / -name ST-LINK_gdbserver -type f 2>/dev/null      # use o caminho completo
+```
+
+Se o `STM32_Programmer_CLI` já estiver no seu `PATH` (STM32CubeProgrammer
+instalado à parte), basta tirar a pasta do `PATH` da task.
+
+### 3. Portas seriais
+
+| Porta | Valor do autor | Precisa trocar? |
+|-------|----------------|-----------------|
+| Console USB da app (`SHELL_PORT`) | `/dev/serial/by-id/usb-GZM_Embedded_Systems_Do_Codigo_ao_Campo_Demo-if00` | **Não**: o nome vem do firmware, é o mesmo em qualquer placa da demo |
+| Adaptador USB-serial da UART4 (`UPDATE_PORT`) | `/dev/serial/by-id/usb-1a86_USB_Single_Serial_5552003040-if00` | **Sim**: o nome tem o fabricante e o **número de série do adaptador do autor** |
+
+Ligue o seu adaptador e veja o nome dele:
+
+```bash
+ls -l /dev/serial/by-id/
+```
+
+Troque o caminho do adaptador em:
+
+| Arquivo | Campo |
+|---------|-------|
+| `.vscode/tasks.json` | `inputs` → `serialPort` → `default` (as tasks "Twister (device)" e "Robot (…)" perguntam a porta, com este valor já preenchido) |
+| `.vscode/settings.json` | `robotcode.robot.variables` → `UPDATE_PORT` (usado pelo painel Testing do Robot) |
+| `tests/robot/run.sh` | `UPDATE_PORT` padrão (quando roda sem a variável) |
+| `tests/robot/resources/board.resource` | `${UPDATE_PORT}` (quando roda o `robot` direto) |
+
+O `tools/twister/flash_uart.py` acha sozinho um adaptador **CH340/CH9102**
+(fabricante `1a86`). Com outro chip (FTDI, CP210x, PL2303), troque o padrão de
+`--uart` no fim do arquivo (`default_port("1a86", "ttyUSB0")`) pelo pedaço do
+nome que aparece no seu `ls -l /dev/serial/by-id/`. A GUI de atualização não
+precisa de nada: ela lista as portas e já escolhe o adaptador.
+
+### 4. Chaves da demo e a placa
+
+> [!IMPORTANT]
+> Cada pessoa gera as **próprias** chaves (`tools/keys/*.pem` estão no
+> `.gitignore`). O MCUboot da placa só aceita imagens assinadas com as chaves
+> com que **ele** foi compilado. Por isso, numa placa nova, ou depois de gerar
+> chaves novas, grave a placa pelo ST-Link (task **"West Flash (ST-Link)"**)
+> antes de testar a atualização pela UART. Se não, o upload vai até o fim, mas
+> o MCUboot não mostra nada no slot1 e a GUI termina com `could not find the
+> uploaded image hash in slot 1`.
 
 ---
 
@@ -99,11 +187,13 @@ preciso outro projeto no west. Só duas bibliotecas são usadas aqui:
 A app (`app/src/users_app.c`) monta a LittleFS na partição escolhida no
 devicetree (`chosen { app,users-partition = … }`: a NOR SPI na placa, uma
 partição do simulador de flash no native_sim) e cria um admin padrão quando o
-armazenamento está vazio. `app/Kconfig`:
+armazenamento está vazio. As opções (a primeira vem da biblioteca, em
+`gzm/lib/user_mgr/Kconfig`, e o `app/prj.conf` fixa o valor; as outras duas
+estão no `app/Kconfig`):
 
 | Opção | Padrão | Significado |
 |-------|--------|-------------|
-| `CONFIG_APP_USER_MGR_MAX` | 50 | capacidade (admin incluído); depois disso o `user add` falha com `-28` (`-ENOSPC`) |
+| `CONFIG_GZM_USER_MGR_MAX` | 50 | capacidade (admin incluído); depois disso o `user add` falha com `-28` (`-ENOSPC`) |
 | `CONFIG_APP_ADMIN_ID` | 1 | id do admin padrão |
 | `CONFIG_APP_ADMIN_PASSWORD` | `1234` | senha do admin padrão (valor de demo, só no primeiro boot) |
 
@@ -114,7 +204,7 @@ user count                                   # "N users (M admins enabled)"
 user add <id> <level> <first> <last> <pwd>   # ex.: user add 1001 user Usuario Teste01 Senha01
 user login <id> <pwd>                        # "ok: …" ou "login failed (-13)"
 user set_status <id> <0|1>                   # 0 = bloqueado, 1 = habilitado
-user del <id>   ·   user show_all   ·   user levels   ·   user set_pwd   ·   user rename
+user del <id>   ·   user show <id>   ·   user show_all   ·   user levels   ·   user set_pwd   ·   user rename
 ```
 
 Os arquivos dos usuários podem ser vistos com o shell do sistema de arquivos
@@ -168,7 +258,7 @@ pip install git+https://github.com/antmicro/dts2repl
 dts2repl app/build/app/zephyr/zephyr.dts -o weact_stm32h743.repl
 ```
 
-O display ST7735R, as NORs W25Q e o cartão SD não têm modelo pronto no Renode.
+O display ST7735R e as NORs W25Q não têm modelo pronto no Renode.
 
 ---
 
@@ -494,9 +584,10 @@ struct image_tlv { uint16_t it_type; uint16_t it_len; };
    · copy_done · image_ok · magic (16 B) */
 ```
 
-O log do MCUboot sai na USART1 (PA9/PA10, 115200); a UART4 fica reservada para
-o serial recovery (SMP). O MCUboot se recusa a compilar com o console na mesma
-UART do adaptador serial.
+O MCUboot não tem console nem log (`CONFIG_CONSOLE=n`, `CONFIG_LOG=n` no
+`app/sysbuild/mcuboot.conf`): o console da placa é o USB CDC ACM, que não
+existe dentro do bootloader, e a UART4 fica só para o serial recovery (SMP).
+O LED da placa acende enquanto a janela do recovery está aberta.
 
 ---
 
@@ -522,6 +613,22 @@ python3 tools/flasher/fw_update_gui.py
 python3 tools/flasher/fw_update.py -p /dev/ttyUSB0 -c /dev/ttyACM0 \
     app/build/app/zephyr/zephyr.signed.encrypted.bin
 ```
+
+Do lado da app, os comandos `boot` do shell USB (`app/src/boot/boot_shell.c`)
+mostram e controlam os slots:
+
+```text
+boot status        # slot0 e slot1: versão, tamanho, confirmada/pendente, hash
+boot version       # "app version: v1.0.0 (confirmed)" ou "(test)"
+boot confirm       # confirma a imagem que está rodando (senão o reboot faz rollback)
+boot reboot        # reinicia; o atualizador usa este para entrar no MCUboot
+boot erase_slot1   # apaga o slot1 (exemplo de acesso direto à partição)
+```
+
+O `boot erase_slot1` fica como exemplo: a app apaga o slot1 da NOR QSPI pela
+API do MCUboot (`boot_erase_img_bank()`), sem passar pelo bootloader. Com o
+slot1 já apagado, a próxima atualização só grava, sem apagar antes. Nenhuma
+ferramenta da demo precisa dele.
 
 ### Usando a GUI
 
@@ -598,15 +705,14 @@ compile a app duas vezes (task "Native Build" e o mesmo comando com
 v2.0.0 aparece como `v2.0.0 TEST` até o `boot confirm`, e depois como
 `v2.0.0 OK`.
 
-### Clientes SMP
+### Cliente SMP
 
-As duas falam SMP, o protocolo do serial recovery do MCUboot, por um destes
-dois clientes:
-
-| Cliente | Usado por | Imagem de 373 KB a 921600 baud |
-|---------|-----------|--------------------------------|
-| [smpclient](https://github.com/intercreate/smpclient) (Python) | a GUI; a CLI com `--client smpclient` | ~12 s |
-| `mcumgr` (CLI em Go) | a CLI por padrão; o `flash_uart.py` do Twister | ~85 s (ele espera 20 ms a cada linha de 124 bytes) |
+A GUI, a CLI e o `flash_uart.py` do Twister falam SMP, o protocolo do serial
+recovery do MCUboot, pelo [smpclient](https://github.com/intercreate/smpclient)
+(Python): uma imagem de 373 KB vai em ~12 s a 921600 baud. Se a placa ficar
+presa no recovery (depois de uma imagem recusada, por exemplo),
+`python3 tools/flasher/fw_update.py -p <UART4> --reset` dá boot de novo na
+imagem confirmada.
 
 Sem o `-c` (porta do console), reinicie a placa quando pedido; o MCUboot
 espera cerca de 5 s pelo DFU depois do boot
@@ -620,12 +726,7 @@ endereços absolutos).
 As ferramentas se instalam sozinhas: na primeira execução, criam um virtualenv
 próprio em `tools/flasher/.venv`, instalam as dependências Python (pyserial,
 smpclient) e se reiniciam. Nada é instalado no sistema; funciona em Linux,
-macOS e Windows. A CLI `mcumgr` em Go também é instalada automaticamente
-quando o Go está disponível; senão, a ferramenta mostra o comando:
-
-```bash
-go install github.com/apache/mynewt-mcumgr-cli/mcumgr@latest
-```
+macOS e Windows.
 
 A GUI também precisa do Tk (`sudo apt install python3-tk` no Debian/Ubuntu; a
 ferramenta mostra o comando para o seu sistema).
@@ -652,13 +753,9 @@ para caber na demo ao vivo:
 | | 07 An update that is not confirmed rolls back | a v2.0.0 dá boot em *test*, reboot → volta para a v1.0.0 |
 | | 08 A confirmed update keeps the users | os 3 usuários criados no setup da suíte sobrevivem à troca para a v2.0.0 confirmada |
 
-O `suites/upload_speed.robot` envia a mesma imagem com cada cliente SMP
-(mcumgr, depois smpclient) e confere que o smpclient é pelo menos 3x mais
-rápido (medido: 6,8x, 84,9 s → 12,4 s).
-
 Os prefixos `01__`/`02__` definem a ordem e somem do nome da suíte. A suíte de
 usuários precisa só do shell USB; no fim, ela apaga os usuários do padrão. A
-suíte de atualização usa o smpclient (o cliente da GUI, ~12 s por imagem):
+suíte de atualização usa o mesmo núcleo da GUI (~12 s por imagem):
 cerca de 25 s no 06, 60 s no 07, 50 s no 08, e 45 s no teardown, que volta para
 a v1.0.0. O setup grava a v1.0.0 antes, se a placa estiver com outra versão, e
 cria 3 usuários do padrão. Ela precisa do shell USB, do adaptador da UART4 e
@@ -678,9 +775,7 @@ UPDATE_PORT=/dev/ttyUSB0 SHELL_PORT=/dev/ttyACM0 tests/robot/run.sh --include us
 # task "Robot (firmware update)": 06-08
 UPDATE_PORT=/dev/ttyUSB0 SHELL_PORT=/dev/ttyACM0 tests/robot/run.sh --include update
 # task "Robot (board acceptance)": as duas, 01-08
-UPDATE_PORT=/dev/ttyUSB0 SHELL_PORT=/dev/ttyACM0 tests/robot/run.sh --exclude speed
-# task "Robot (upload speed)"
-UPDATE_PORT=/dev/ttyUSB0 SHELL_PORT=/dev/ttyACM0 tests/robot/run.sh --include speed
+UPDATE_PORT=/dev/ttyUSB0 SHELL_PORT=/dev/ttyACM0 tests/robot/run.sh
 ```
 
 Relatório: `tests/robot/results/report.html`. Rode uma suíte por vez: duas
@@ -799,8 +894,4 @@ acima diz qual task roda o seu comando.
 | Placa (cap. 03, 07) | West Build · West Build (v2.0.0) · West Flash (ST-Link) |
 | Atualização (cap. 06) | Serial Update (GUI) |
 | PC (cap. 02, 04) | Native Build · Native Run · Test Build (native_sim debug) |
-| Testes (cap. 04, 07) | Twister (host) · Twister Coverage (host) · Twister (device) · Robot (users) · Robot (firmware update) · Robot (board acceptance) · Robot (upload speed) |
-
-## Licença
-
-Apache-2.0
+| Testes (cap. 04, 07) | Twister (host) · Twister Coverage (host) · Twister (device) · Robot (users) · Robot (firmware update) · Robot (board acceptance) |
