@@ -58,29 +58,56 @@ troque nestes campos:
 | `.vscode/settings.json` | `cortex-debug.armToolchainPath`, `cortex-debug.gdbPath`, `C_Cpp.default.compilerPath` | `${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/...` |
 | `.vscode/launch.json` | `gdbPath` (nas duas configurações de ST-Link) | `${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb` |
 
-### 2. ST-Link: STM32CubeIDE (gravação e debug)
+### 2. ST-Link: instale o STM32CubeProgrammer antes (só com a placa)
 
-A gravação e o debug usam o `STM32_Programmer_CLI` e o `ST-LINK_gdbserver` que
-vêm dentro do **STM32CubeIDE**. Os caminhos têm a versão do IDE e dos plugins,
-então quase nunca batem com outra instalação:
+> [!TIP]
+> **Sem a placa, o native_sim já basta.** A app inteira (usuários, LittleFS,
+> display LVGL numa janela) roda no PC pelo native_sim (cap. 02), e os testes
+> rodam pelo Twister no PC (cap. 04). Para isso você precisa só do item 1
+> acima: nada de ST-Link, STM32CubeProgrammer nem portas seriais. Os itens 2 a
+> 4 abaixo são para quem tem a placa.
+
+> [!IMPORTANT]
+> **Com a placa, instale o [STM32CubeProgrammer](https://www.st.com/en/development-tools/stm32cubeprog.html)
+> antes de gravar.** Ele não vem com o Zephyr nem com o Getting
+> Started, e sem ele a task **"West Flash (ST-Link)"** falha com
+> `STM32_Programmer_CLI not found`. Essa task faz a primeira gravação (MCUboot
+> + app) e é o `preLaunchTask` do debug por ST-Link; a atualização pela UART
+> (cap. 06) e os testes do Robot só funcionam numa placa gravada assim.
+
+* **Download:** no site da ST (gratuito, pede login). No Linux, rode o
+  instalador e aceite a pasta padrão: `~/STMicroelectronics/STM32Cube/STM32CubeProgrammer/`.
+* **Na pasta padrão, o Zephyr acha o `STM32_Programmer_CLI` sozinho**
+  (`~/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin`), e a task de
+  gravação funciona sem mexer em nada. Em outra pasta, ponha a `bin/` dele no
+  seu `PATH`.
+* **Permissão do ST-Link no Linux:** se a gravação der `No ST-LINK detected`
+  com o ST-Link ligado, instale as regras udev que vêm no pacote
+  (`Drivers/rules/*.rules` → `/etc/udev/rules.d/`), rode
+  `sudo udevadm control --reload-rules` e reconecte o ST-Link.
+* Confira: `STM32_Programmer_CLI --version` (ou o caminho completo da `bin/`).
+
+O **debug** pelo VS Code usa também o `ST-LINK_gdbserver`, que não vem no
+STM32CubeProgrammer: ele vem no **STM32CubeIDE** (que também traz um
+`STM32_Programmer_CLI`). Só é preciso se você for depurar na placa.
+
+O autor usa as ferramentas de dentro do STM32CubeIDE, por isso estes campos
+apontam para lá. Troque pelos seus:
 
 | Arquivo | Campo | Valor do autor |
 |---------|-------|----------------|
-| `.vscode/tasks.json` | `PATH` da task "West Flash (ST-Link)" (a pasta do `STM32_Programmer_CLI`) | `/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.linux64_2.2.300.202508131133/tools/bin` |
-| `.vscode/launch.json` | `stm32cubeprogrammer` (nas duas configurações de ST-Link) | a mesma pasta acima |
-| `.vscode/launch.json` | `serverpath` (nas duas configurações de ST-Link) | `/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.stlink-gdb-server.linux64_2.2.300.202509021040/tools/bin/ST-LINK_gdbserver` |
+| `.vscode/tasks.json` | `PATH` da task "West Flash (ST-Link)" (a pasta do `STM32_Programmer_CLI`). Com o STM32CubeProgrammer na pasta padrão, pode deixar como está: uma pasta que não existe no `PATH` é ignorada | `/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.linux64_2.2.300.202508131133/tools/bin` |
+| `.vscode/launch.json` | `stm32cubeprogrammer` (nas duas configurações de ST-Link): a pasta do `STM32_Programmer_CLI` | a mesma pasta acima |
+| `.vscode/launch.json` | `serverpath` (nas duas configurações de ST-Link): o `ST-LINK_gdbserver` do STM32CubeIDE | `/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.stlink-gdb-server.linux64_2.2.300.202509021040/tools/bin/ST-LINK_gdbserver` |
 
 Para achar os seus:
 
 ```bash
-find / -name STM32_Programmer_CLI -type f 2>/dev/null   # use a pasta (…/tools/bin)
+find / -name STM32_Programmer_CLI -type f 2>/dev/null   # use a pasta (…/bin)
 find / -name ST-LINK_gdbserver -type f 2>/dev/null      # use o caminho completo
 ```
 
-Se o `STM32_Programmer_CLI` já estiver no seu `PATH` (STM32CubeProgrammer
-instalado à parte), basta tirar a pasta do `PATH` da task.
-
-### 3. Portas seriais
+### 3. Portas seriais (só com a placa)
 
 | Porta | Valor do autor | Precisa trocar? |
 |-------|----------------|-----------------|
@@ -132,7 +159,9 @@ precisa de nada: ela lista as portas e já escolhe o adaptador.
   * NOR externa: W25Q64 8 MB QSPI (**slot1 do MCUboot**) + W25Q64 8 MB SPI1
     (**armazenamento dos usuários**: LittleFS com blocos de 4 KB)
 * **Adaptador USB-serial** (que suporte 921600 baud) para a porta de atualização
-* **ST-Link** no SWD para a primeira gravação e para o debug
+* **ST-Link** no SWD para a primeira gravação e para o debug, com o
+  **STM32CubeProgrammer** instalado no PC (veja
+  [Antes de começar](#2-st-link-instale-o-stm32cubeprogrammer-antes-só-com-a-placa))
 * **Zephyr RTOS:** v4.4.1
 
 | Sinal                  | Pino da placa | Vai para                     |
