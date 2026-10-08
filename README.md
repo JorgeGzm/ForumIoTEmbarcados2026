@@ -37,38 +37,57 @@ os comandos completos e os detalhes ficam aqui, com o mesmo número de capítulo
 ## Antes de começar: configure para a sua máquina
 
 > [!WARNING]
-> Os arquivos do `.vscode/` e os testes do Robot vêm com caminhos e portas da
-> máquina do autor. Antes de rodar qualquer task, confira os campos abaixo e
-> troque pelos valores da **sua** instalação. Se algum estiver errado, a task
-> falha logo no começo (`west: command not found`, `STM32_Programmer_CLI not
-> found`, `port not found`…).
+> O setup Python (`./tools/setup/setup.sh`) é agnóstico de ambiente: cria um
+> venv em `.venv/` na raiz do repositório, baixa o workspace west e instala as
+> dependências. O que não dá para adivinhar são os caminhos de debug/gravação
+> (STM32CubeIDE e, para debug, o SDK) e as portas seriais: confira os campos
+> abaixo e troque pelos valores da **sua** instalação antes de usar as tasks de
+> flash/debug/testes. Se algum estiver errado, a task falha logo no começo
+> (`STM32_Programmer_CLI not found`, `port not found`…).
 
-### 1. Zephyr: virtualenv e SDK
+### 1. Setup: um comando
 
-O padrão é a instalação do
-[Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html):
-virtualenv em `~/zephyrproject/.venv` e Zephyr SDK **1.0.1** em
-`~/zephyr-sdk-1.0.1`. Se a sua é diferente (outra pasta, outra versão do SDK),
-troque nestes campos:
+```bash
+./tools/setup/setup.sh          # dependências mínimas (build, Twister, cobertura, Robot)
+./tools/setup/setup.sh --full   # conjunto completo do Zephyr (west packages pip --install)
+```
+
+O script cria o venv em `.venv/` (raiz do repo, já no `.gitignore`), instala o
+`west`, roda `west init/update`, instala as dependências Python da Zephyr, do
+MCUboot (é o que faz o `imgtool`/`genkeys.sh` funcionar) e do Robot, roda
+`west zephyr-export` e gera as chaves da demo. Rode de novo quando quiser: os
+passos já prontos são pulados. Para usar `west`/`pip` direto no seu terminal:
+`source .venv/bin/activate`.
+
+O build acha o **Zephyr SDK sozinho** (procura em `ZEPHYR_SDK_INSTALL_DIR`,
+`~/zephyr-sdk-*`, `~/.local`, `/opt`...). Se você ainda não tem SDK nenhum,
+instale com `west sdk install` (ou siga o
+[Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html)).
+
+### 2. Zephyr SDK: só os caminhos de debug do `.vscode/`
+
+O build e as tasks usam o SDK encontrado automaticamente; os campos abaixo são
+só para debug/IntelliSense e continuam com o valor do autor. Se o seu SDK está
+em outra pasta (ou é outra versão), troque o prefixo `~/zephyr-sdk-1.0.1` pelo
+seu:
 
 | Arquivo | Campo | Valor do autor |
 |---------|-------|----------------|
-| `.vscode/tasks.json` | `options.env`: `VIRTUAL_ENV`, `PATH`, `ZEPHYR_SDK_INSTALL_DIR` (no topo e de novo na task "West Flash (ST-Link)") | `${env:HOME}/zephyrproject/.venv`, `${env:HOME}/zephyr-sdk-1.0.1` |
-| `.vscode/settings.json` | `python.defaultInterpreterPath`, `terminal.integrated.env.linux` | `${env:HOME}/zephyrproject/.venv/...` |
 | `.vscode/settings.json` | `cortex-debug.armToolchainPath`, `cortex-debug.gdbPath`, `C_Cpp.default.compilerPath` | `${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/...` |
 | `.vscode/launch.json` | `gdbPath` (nas duas configurações de ST-Link) | `${env:HOME}/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb` |
 
-### 2. ST-Link: STM32CubeIDE (gravação e debug)
+### 3. ST-Link: STM32CubeIDE (gravação e debug)
 
-A gravação e o debug usam o `STM32_Programmer_CLI` e o `ST-LINK_gdbserver` que
-vêm dentro do **STM32CubeIDE**. Os caminhos têm a versão do IDE e dos plugins,
-então quase nunca batem com outra instalação:
+A gravação pela task "West Flash (ST-Link)" usa o `STM32_Programmer_CLI`; o
+debug do VS Code usa também o `ST-LINK_gdbserver`. Os dois vêm dentro do
+**STM32CubeIDE**, e os caminhos têm a versão do IDE e dos plugins, então quase
+nunca batem com outra instalação:
 
-| Arquivo | Campo | Valor do autor |
-|---------|-------|----------------|
-| `.vscode/tasks.json` | `PATH` da task "West Flash (ST-Link)" (a pasta do `STM32_Programmer_CLI`) | `/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.linux64_2.2.300.202508131133/tools/bin` |
+| Onde | Campo | Valor do autor |
+|------|-------|----------------|
+| ambiente | `STM32_Programmer_CLI` no `PATH` (a task não injeta caminho nenhum) | pasta `.../plugins/...cubeprogrammer.../tools/bin` do seu STM32CubeIDE |
 | `.vscode/launch.json` | `stm32cubeprogrammer` (nas duas configurações de ST-Link) | a mesma pasta acima |
-| `.vscode/launch.json` | `serverpath` (nas duas configurações de ST-Link) | `/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.stlink-gdb-server.linux64_2.2.300.202509021040/tools/bin/ST-LINK_gdbserver` |
+| `.vscode/launch.json` | `serverpath` (nas duas configurações de ST-Link) | `.../tools/bin/ST-LINK_gdbserver` |
 
 Para achar os seus:
 
@@ -78,9 +97,10 @@ find / -name ST-LINK_gdbserver -type f 2>/dev/null      # use o caminho completo
 ```
 
 Se o `STM32_Programmer_CLI` já estiver no seu `PATH` (STM32CubeProgrammer
-instalado à parte), basta tirar a pasta do `PATH` da task.
+instalado à parte, por exemplo), a task de flash funciona sem mexer em nada:
+acrescente a pasta do `tools/bin` ao `PATH` do seu shell ou edite a task.
 
-### 3. Portas seriais
+### 4. Portas seriais
 
 | Porta | Valor do autor | Precisa trocar? |
 |-------|----------------|-----------------|
@@ -108,7 +128,7 @@ O `tools/twister/flash_uart.py` acha sozinho um adaptador **CH340/CH9102**
 nome que aparece no seu `ls -l /dev/serial/by-id/`. A GUI de atualização não
 precisa de nada: ela lista as portas e já escolhe o adaptador.
 
-### 4. Chaves da demo e a placa
+### 5. Chaves da demo e a placa
 
 > [!IMPORTANT]
 > Cada pessoa gera as **próprias** chaves (`tools/keys/*.pem` estão no
@@ -254,8 +274,8 @@ mão: a SPI do H7 saiu com o modelo do F4 (outro mapa de registradores) e
 faltou o controlador de flash.
 
 ```bash
-pip install git+https://github.com/antmicro/dts2repl
-dts2repl app/build/app/zephyr/zephyr.dts -o weact_stm32h743.repl
+.venv/bin/pip install git+https://github.com/antmicro/dts2repl
+dts2repl app/build/zephyr/zephyr.dts -o weact_stm32h743.repl
 ```
 
 O display ST7735R e as NORs W25Q não têm modelo pronto no Renode.
@@ -269,13 +289,21 @@ Siga o
 do Zephyr (SDK + west). Depois, na raiz do repositório:
 
 ```bash
-# task "Manifest: Fetch (west init + update)"; pula o west init quando o .west/ já existe
-west init -l manifest
+# task "Manifest: Fetch": um comando só (venv + west + dependências + chaves)
+./tools/setup/setup.sh
+
+# o mesmo passo a passo na mão, com o venv ativo:
+source .venv/bin/activate
+west init -l manifest        # só na primeira vez
 west update
+west packages pip --install  # ou as requirements mínimas (veja tools/setup/setup.sh)
 west zephyr-export
-./tools/keys/genkeys.sh   # mesmo que a task "Generate Demo Keys"
+./tools/keys/genkeys.sh      # mesmo que a task "Generate Demo Keys"
 ```
 
+* `./tools/setup/setup.sh` cria o `.venv/` na raiz (se ainda não existir),
+  instala o `west` e as dependências Python da Zephyr, do MCUboot e do Robot, e
+  só então roda os passos abaixo. O `python3` do sistema não é usado.
 * `west init -l manifest` não baixa nada: só cria o `.west/config`, que diz ao
   west onde está o manifest (`manifest/west.yml`) e, depois do primeiro
   comando, onde está o Zephyr (`zephyr.base`). Ele transforma esta pasta num
@@ -290,8 +318,9 @@ west zephyr-export
   no shell: ele vence o `.west/config` em todos os workspaces.
 * `./tools/keys/genkeys.sh` gera as chaves da demo do MCUboot (veja o
   [cap. 05](#05--bootloader-mcuboot)). Ele usa o `imgtool` que o `west update`
-  baixou em `bootloader/mcuboot/`, por isso roda por último, e não sobrescreve
-  uma chave que já existe. A task **Generate Demo Keys** roda só este passo.
+  baixou em `bootloader/mcuboot/` e o Python do `.venv/`, por isso roda por
+  último, e não sobrescreve uma chave que já existe. A task **Generate Demo
+  Keys** roda só este passo.
 
 O `manifest/west.yml` fixa o Zephyr v4.4.1 e uma **allowlist** de módulos: só
 o que está na lista é baixado. Se o código usar uma biblioteca de um módulo que
@@ -307,7 +336,7 @@ mostrar o workspace sendo recriado só a partir do `manifest/west.yml`.
 
 As chaves da demo precisam existir antes do primeiro sysbuild (veja o
 [cap. 05](#05--bootloader-mcuboot)). A task **Manifest: Fetch** já as gera no
-final; pela linha de comando, rode depois do `west update`:
+final; pela linha de comando, rode depois do setup (ou a qualquer momento):
 
 ```bash
 # task "Generate Demo Keys"
@@ -514,8 +543,8 @@ atualizações.
 
 # o que ela roda, para cada chave:
 IMGTOOL=bootloader/mcuboot/scripts/imgtool.py
-python3 $IMGTOOL keygen -t ecdsa-p256 -k tools/keys/demo-ecdsa-p256.pem
-python3 $IMGTOOL keygen -t ecdsa-p256 -k tools/keys/demo-encryption-p256.pem
+.venv/bin/python3 $IMGTOOL keygen -t ecdsa-p256 -k tools/keys/demo-ecdsa-p256.pem
+.venv/bin/python3 $IMGTOOL keygen -t ecdsa-p256 -k tools/keys/demo-encryption-p256.pem
 ```
 
 O build do MCUboot embute as chaves automaticamente
@@ -768,7 +797,7 @@ de duas imagens:
    no fim.
 
 ```bash
-pip install -r tests/robot/requirements.txt
+.venv/bin/pip install -r tests/robot/requirements.txt
 
 # task "Robot (users)": 01-05
 UPDATE_PORT=/dev/ttyUSB0 SHELL_PORT=/dev/ttyACM0 tests/robot/run.sh --include users

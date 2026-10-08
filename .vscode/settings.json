@@ -3,14 +3,13 @@
     // Python Env config
     // ===========================================
 
-    "python.defaultInterpreterPath": "${env:HOME}/zephyrproject/.venv/bin/python3",
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python3",
     "python.terminal.activateEnvironment": true,
     "python.terminal.activateEnvInCurrentTerminal": true,
     "terminal.integrated.env.linux": {
-        "VIRTUAL_ENV": "${env:HOME}/zephyrproject/.venv",
-        "PATH": "${env:HOME}/zephyrproject/.venv/bin:${env:PATH}",
-        "ZEPHYR_BASE": "${workspaceFolder}/zephyr",
-        "ZEPHYR_SDK_INSTALL_DIR": "${env:HOME}/zephyr-sdk-1.0.1"
+        "VIRTUAL_ENV": "${workspaceFolder}/.venv",
+        "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
+        "ZEPHYR_BASE": "${workspaceFolder}/zephyr"
     },
 
     // ===========================================
