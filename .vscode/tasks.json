@@ -47,9 +47,9 @@
     "tasks": [
         {
             "label": "Manifest: Fetch (west init + update)",
-            "detail": "First run: west init -l manifest, west update (Zephyr, modules and MCUboot at the versions pinned in manifest/west.yml) and west zephyr-export.",
+            "detail": "First run: west init -l manifest, west update (Zephyr, modules and MCUboot at the versions pinned in manifest/west.yml), west zephyr-export and then Generate Demo Keys (existing keys are kept).",
             "type": "shell",
-            "command": "if [ -d .west ]; then echo '.west/ already exists: skipping west init'; else west init -l manifest; fi && west update && west zephyr-export",
+            "command": "if [ -d .west ]; then echo '.west/ already exists: skipping west init'; else west init -l manifest; fi && west update && west zephyr-export && ./tools/keys/genkeys.sh",
             "presentation": {
                 "reveal": "always",
                 "panel": "dedicated",

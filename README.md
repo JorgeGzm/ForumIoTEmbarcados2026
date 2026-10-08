@@ -183,6 +183,7 @@ do Zephyr (SDK + west). Depois, na raiz do repositório:
 west init -l manifest
 west update
 west zephyr-export
+./tools/keys/genkeys.sh   # mesmo que a task "Generate Demo Keys"
 ```
 
 * `west init -l manifest` não baixa nada: só cria o `.west/config`, que diz ao
@@ -197,6 +198,10 @@ west zephyr-export
   `.west/` e usa o `zephyr/` deste workspace, então vários workspaces com
   versões diferentes do Zephyr convivem lado a lado. Não exporte `ZEPHYR_BASE`
   no shell: ele vence o `.west/config` em todos os workspaces.
+* `./tools/keys/genkeys.sh` gera as chaves da demo do MCUboot (veja o
+  [cap. 05](#05--bootloader-mcuboot)). Ele usa o `imgtool` que o `west update`
+  baixou em `bootloader/mcuboot/`, por isso roda por último, e não sobrescreve
+  uma chave que já existe. A task **Generate Demo Keys** roda só este passo.
 
 O `manifest/west.yml` fixa o Zephyr v4.4.1 e uma **allowlist** de módulos: só
 o que está na lista é baixado. Se o código usar uma biblioteca de um módulo que
@@ -211,7 +216,8 @@ mostrar o workspace sendo recriado só a partir do `manifest/west.yml`.
 ### Build e gravação
 
 As chaves da demo precisam existir antes do primeiro sysbuild (veja o
-[cap. 05](#05--bootloader-mcuboot)):
+[cap. 05](#05--bootloader-mcuboot)). A task **Manifest: Fetch** já as gera no
+final; pela linha de comando, rode depois do `west update`:
 
 ```bash
 # task "Generate Demo Keys"
@@ -413,7 +419,7 @@ nunca um fluxo de produção**. Perdeu a chave de assinatura, acabaram as
 atualizações.
 
 ```bash
-# task "Generate Demo Keys": não sobrescreve uma chave que já existe
+# task "Generate Demo Keys" (a "Manifest: Fetch" já roda no final): não sobrescreve uma chave que já existe
 ./tools/keys/genkeys.sh
 
 # o que ela roda, para cada chave:
@@ -516,6 +522,83 @@ python3 tools/flasher/fw_update_gui.py
 python3 tools/flasher/fw_update.py -p /dev/ttyUSB0 -c /dev/ttyACM0 \
     app/build/app/zephyr/zephyr.signed.encrypted.bin
 ```
+
+### Usando a GUI
+
+![Atualizador de firmware (GUI)](doc/img/fw_update_gui.png)
+
+1. Ligue o adaptador USB-serial na UART4 (PA0/PA1) e o USB-C da placa no PC.
+2. Abra a GUI pela task **Serial Update (GUI)**. Na primeira vez, ela cria o
+   virtualenv e instala as dependências sozinha.
+3. **Update port (UART4)**: a porta do adaptador USB-serial. A GUI já escolhe
+   um adaptador CH340, FTDI, CP210x ou PL2303 e nunca o ST-Link. Se você ligou
+   o adaptador com a GUI aberta, clique em **↻** para atualizar a lista.
+4. **App console (optional)**: o console USB da app (`GZM … Demo`), também
+   escolhido sozinho. Com ele, a GUI manda `boot reboot` e a placa entra no
+   MCUboot sem você tocar nela. Deixe vazio para reiniciar a placa na mão
+   quando o log pedir (a janela do recovery dura ~5 s).
+5. **Firmware (.bin)**: a imagem **assinada e criptografada**. O padrão é a do
+   `app/build` (a v1.0.0). Para mandar a atualização, clique em **…** e escolha
+   `app/build_v200/app/zephyr/zephyr.signed.encrypted.bin`.
+6. Clique em **Update Firmware**. Cada círculo é um passo da sequência acima
+   (Start, Recovery, Upload, Validate, Test mode, Reboot): cinza = pendente,
+   azul = rodando, verde = feito, vermelho = falhou. A barra mostra o envio
+   (porcentagem, bytes e KB/s), e o log embaixo mostra cada comando.
+7. No fim aparece `Update complete. Confirm it on the device shell (boot confirm)`:
+   a placa deu boot na imagem nova em modo *test*. Rode `boot confirm` no
+   shell USB para ela ficar; se você reiniciar sem confirmar, o MCUboot volta
+   para a versão anterior.
+
+### Testando a atualização: v1.0.0 → v2.0.0
+
+Para testar o processo de update, basta gerar o mesmo firmware com outra
+versão. A versão fica no arquivo `app/VERSION`, que o Zephyr lê a cada build
+(é ela que aparece no display e no header da imagem do MCUboot):
+
+```txt
+# Arquivo app/VERSION
+
+# antes: v1.0.0 (a imagem de fábrica)
+VERSION_MAJOR = 1
+VERSION_MINOR = 0
+PATCHLEVEL = 0
+VERSION_TWEAK = 0
+EXTRAVERSION =
+
+# altere para: v2.0.0 (a atualização), só a primeira linha muda
+VERSION_MAJOR = 2
+VERSION_MINOR = 0
+PATCHLEVEL = 0
+VERSION_TWEAK = 0
+EXTRAVERSION =
+```
+
+Depois compile de novo (task "West Build") e envie pela GUI o
+`app/build/app/zephyr/zephyr.signed.encrypted.bin`, que já é a imagem padrão
+dela. Lembre de voltar o
+`VERSION_MAJOR` para `1` depois, senão a próxima imagem "de fábrica" também
+sai como v2.0.0.
+
+A task **West Build (v2.0.0)** faz essa troca sozinha: muda o `VERSION_MAJOR`
+para `2` só durante o build, compila em `app/build_v200` (sem apagar a v1.0.0
+do `app/build`) e devolve o `app/VERSION` ao original no fim.
+
+A cor da tela mostra qual versão está rodando: **major ímpar = fundo preto**,
+**major par = fundo amarelo** (`ui_app_init()` em `app/src/ui_app.c`). Ao
+atualizar de v1.0.0 para v2.0.0, a tela fica amarela; num rollback, volta a
+ficar preta. Os usuários ficam na NOR SPI, então a contagem não muda.
+
+| v1.0.0 (ímpar): fundo preto | v2.0.0 (par): fundo amarelo |
+|-----------------------------|-----------------------------|
+| ![v1.0.0](doc/img/native_sim_v1_odd.png) | ![v2.0.0](doc/img/native_sim_v2_even.png) |
+
+As capturas são do native_sim (por isso o `SIM` no lugar de `OK`/`TEST`):
+compile a app duas vezes (task "Native Build" e o mesmo comando com
+`VERSION_MAJOR = 2`) para ver as duas cores no PC, sem placa. Na placa, a
+v2.0.0 aparece como `v2.0.0 TEST` até o `boot confirm`, e depois como
+`v2.0.0 OK`.
+
+### Clientes SMP
 
 As duas falam SMP, o protocolo do serial recovery do MCUboot, por um destes
 dois clientes:
@@ -667,14 +750,19 @@ silêncio no barramento virar uma falha.
 ## 08 · Rodando a demo
 
 1. Grave a v1.0.0 de fábrica (task "West Flash (ST-Link)"). O display mostra
-   os usuários (`1/50`), os bloqueados e `v1.0.0 OK`. No shell USB:
+   os usuários (`1/50`), os bloqueados e `v1.0.0 OK`, com fundo **preto**
+   (versão ímpar). No shell USB:
    `boot status`, `boot version`, `user count`,
    `user add 1001 user Usuario Teste01 Senha01`.
-2. Gere a atualização: task "West Build (v2.0.0)" (`app/build_v200`).
-3. Envie com a GUI (task "Serial Update (GUI)", veja o [cap. 06](#06--atualização-em-campo)).
-4. O MCUboot valida a assinatura, troca os slots e dá boot na `v2.0.0 TEST`.
+2. Gere a atualização: task "West Build (v2.0.0)" (`app/build_v200`), que
+   troca o `VERSION_MAJOR` para 2 só durante o build.
+3. Envie com a GUI (task "Serial Update (GUI)"), escolhendo a imagem do
+   `app/build_v200` (veja [Usando a GUI](#usando-a-gui)).
+4. O MCUboot valida a assinatura, troca os slots e dá boot na `v2.0.0 TEST`:
+   a tela fica **amarela** (versão par).
 5. Gostou? `boot confirm` no shell → `v2.0.0 OK`.
-   Não gostou? É só reiniciar: o MCUboot **volta** para a v1.0.0 sozinho.
+   Não gostou? É só reiniciar: o MCUboot **volta** para a v1.0.0 sozinho, e a
+   tela volta a ficar preta.
    Os usuários ficam na NOR SPI, fora dos slots: sobrevivem à atualização e
    ao rollback.
 6. Tente enviar uma imagem **não assinada** (`zephyr.bin`): o MCUboot se
