@@ -3,10 +3,9 @@
     "options": {
         "cwd": "${workspaceFolder}",
         "env": {
-            "VIRTUAL_ENV": "${env:HOME}/zephyrproject/.venv",
-            "PATH": "${env:HOME}/zephyrproject/.venv/bin:${env:PATH}",
-            "ZEPHYR_BASE": "${workspaceFolder}/zephyr",
-            "ZEPHYR_SDK_INSTALL_DIR": "${env:HOME}/zephyr-sdk-1.0.1"
+            "VIRTUAL_ENV": "${workspaceFolder}/.venv",
+            "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
+            "ZEPHYR_BASE": "${workspaceFolder}/zephyr"
         }
     },
     "inputs": [
@@ -47,9 +46,9 @@
     "tasks": [
         {
             "label": "Manifest: Fetch (west init + update)",
-            "detail": "First run: west init -l manifest, west update (Zephyr, modules and MCUboot at the versions pinned in manifest/west.yml), west zephyr-export and then Generate Demo Keys (existing keys are kept).",
+            "detail": "First run: creates .venv/ (if needed), installs west and the Zephyr/MCUboot Python dependencies, west init -l manifest, west update (Zephyr, modules and MCUboot at the versions pinned in manifest/west.yml), west zephyr-export and then Generate Demo Keys (existing keys are kept). Same as ./tools/setup/setup.sh.",
             "type": "shell",
-            "command": "if [ -d .west ]; then echo '.west/ already exists: skipping west init'; else west init -l manifest; fi && west update && west zephyr-export && ./tools/keys/genkeys.sh",
+            "command": "./tools/setup/setup.sh",
             "presentation": {
                 "reveal": "always",
                 "panel": "dedicated",
@@ -118,19 +117,10 @@
         },
         {
             "label": "West Flash (ST-Link)",
-            "detail": "Runs West Build, then flashes the mcuboot domain and the app domain through ST-Link (STM32CubeProgrammer from STM32CubeIDE). Also the preLaunchTask of the ST-Link debug configs.",
+            "detail": "Runs West Build, then flashes the mcuboot domain and the app domain through ST-Link. STM32_Programmer_CLI is taken from the PATH, the default STM32CubeProgrammer folder or an STM32CubeIDE in /opt/st. Also the preLaunchTask of the ST-Link debug configs.",
             "dependsOn": ["West Build"],
             "type": "shell",
-            "command": "west flash -d app/build --runner stm32cubeprogrammer --domain mcuboot && west flash -d app/build --runner stm32cubeprogrammer --domain app",
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "VIRTUAL_ENV": "${env:HOME}/zephyrproject/.venv",
-                    "PATH": "${env:HOME}/zephyrproject/.venv/bin:/opt/st/stm32cubeide_2.0.0/plugins/com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.linux64_2.2.300.202508131133/tools/bin:${env:PATH}",
-                    "ZEPHYR_BASE": "${workspaceFolder}/zephyr",
-                    "ZEPHYR_SDK_INSTALL_DIR": "${env:HOME}/zephyr-sdk-1.0.1"
-                }
-            },
+            "command": "export PATH=\"$PATH:$(ls -d /opt/st/stm32cubeide_*/plugins/*cubeprogrammer*/tools/bin 2>/dev/null | tail -n 1)\" && west flash -d app/build --runner stm32cubeprogrammer --domain mcuboot && west flash -d app/build --runner stm32cubeprogrammer --domain app",
             "presentation": {
                 "reveal": "always",
                 "panel": "shared",
